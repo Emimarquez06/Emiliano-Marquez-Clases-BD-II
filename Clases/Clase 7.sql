@@ -1,96 +1,55 @@
-CREATE DATABASE IF NOT EXISTS imdb;
-USE imdb;
+use sakila;
 
-CREATE TABLE actor (
-  actor_id SMALLINT UNSIGNED NOT NULL AUTO_INCREMENT,
-  first_name VARCHAR(45) NOT NULL,
-  last_name VARCHAR(45) NOT NULL,
-  last_update TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  PRIMARY KEY (actor_id)
+select f.title, f.rating from film f
+where f.length <= all (
+
+	select f1.length from film f1
+
 );
 
-CREATE TABLE film (
-  film_id SMALLINT UNSIGNED NOT NULL AUTO_INCREMENT,
-  title VARCHAR(255) NOT NULL,
-  description TEXT DEFAULT NULL,
-  release_year YEAR DEFAULT NULL,
-  last_update TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  PRIMARY KEY (film_id)
+select f.title from film f
+where f.length < all (
+
+	select f1.length from film f1
+
 );
 
-CREATE TABLE film_actor (
-  actor_id SMALLINT UNSIGNED NOT NULL,
-  film_id SMALLINT UNSIGNED NOT NULL,
-  last_update TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  PRIMARY KEY (actor_id, film_id),
-  CONSTRAINT fk_film_actor_actor FOREIGN KEY (actor_id) REFERENCES actor (actor_id) ON DELETE RESTRICT ON UPDATE CASCADE,
-  CONSTRAINT fk_film_actor_film FOREIGN KEY (film_id) REFERENCES film (film_id) ON DELETE RESTRICT ON UPDATE CASCADE
-);
+select c.first_name, c.last_name,a.address , (
 
-INSERT INTO actor (first_name, last_name) VALUES
-('Leonardo', 'DiCaprio'),
-('Robert', 'De Niro'),
-('Scarlett', 'Johansson');
+select min(p.amount) from payment p
+where p.customer_id = c.customer_id
 
-INSERT INTO film (title, description, release_year) VALUES
-('Inception', 'A mind-bending thriller', 2010),
-('The Irishman', 'A mob drama', 2019),
-('Black Widow', 'A Marvel superhero movie', 2021);
+) as min_payment from customer c
 
-INSERT INTO film_actor (actor_id, film_id) VALUES
-(1, 1),  -- Leonardo DiCaprio en Inception
-(2, 2),  -- Robert De Niro en The Irishman
-(3, 3),  -- Scarlett Johansson en Black Widow
-(1, 2);  -- Leonardo DiCaprio en The Irishman
+inner join address a on c.address_id = a.address_id;
 
-INSERT INTO direcciones (direcciones, city, postal_code, phone) VALUES
-('123 Main St', 'San José', '3100', '123456789'),
-('456 Elm St', 'Paraná', '3100', '987654321');
 
-INSERT INTO customer (first_name, last_name, email, address_id, create_date) VALUES
-('Juan', 'Pérez', 'juan.perez@example.com', 1, NOW()),
-('María', 'Gómez', 'maria.gomez@example.com', 2, NOW());
+select c.first_name, c.last_name,a.address , (
 
-INSERT INTO payment (customer_id, amount, payment_date) VALUES
-(1, 5.99, '2025-04-01'),
-(1, 3.99, '2025-04-10'),
-(2, 2.99, '2025-04-05');
+	select p.amount from payment p
+	where p.customer_id = c.customer_id and p.amount <= all (
+	
+		select p1.amount from payment p1
+		where p1.customer_id = c.customer_id
+	
+	) 
+	
+	limit 1
 
--- 1. Encontrar las películas con menor duración, mostrando título y clasificación
-SELECT title, rating
-FROM film
-WHERE duration = (SELECT MIN(duration) FROM film);
+) as min_payment from customer c
+inner join address a on c.address_id = a.address_id;
 
--- 2. Obtener el título de la película con la menor duración. Si hay más de una, no devolver resultados
-SELECT title
-FROM film
-WHERE duration = (SELECT MIN(duration) FROM film)
-HAVING COUNT(*) = 1;
 
--- 3. Generar un informe con la lista de clientes mostrando el pago más bajo realizado por cada uno, incluyendo su información y dirección
--- MIN
-SELECT c.customer_id, c.first_name, c.last_name, a.address, a.city, MIN(p.amount) AS lowest_payment
-FROM customer c
-JOIN address a ON c.address_id = a.address_id
-JOIN payment p ON c.customer_id = p.customer_id
-GROUP BY c.customer_id, c.first_name, c.last_name, a.address, a.city;
+select c.first_name, c.last_name,a.address , concat((
 
--- ANY
-SELECT c.customer_id, c.first_name, c.last_name, a.address, a.city, p.amount AS lowest_payment
-FROM customer c
-JOIN address a ON c.address_id = a.address_id
-JOIN payment p ON c.customer_id = p.customer_id
-WHERE p.amount <= ALL (
-    SELECT amount
-    FROM payment
-    WHERE customer_id = c.customer_id
-);
+select min(p.amount) from payment p
+where p.customer_id = c.customer_id
 
--- 4. Generar un informe que muestre la información del cliente con el pago más alto y el más bajo en la misma fila
-SELECT c.customer_id, c.first_name, c.last_name, a.address, a.city,
-       MAX(p.amount) AS highest_payment,
-       MIN(p.amount) AS lowest_payment
-FROM customer c
-JOIN address a ON c.address_id = a.address_id
-JOIN payment p ON c.customer_id = p.customer_id
-GROUP BY c.customer_id, c.first_name, c.last_name, a.address, a.city;
+), " | ", (
+
+select max(p.amount) from payment p
+where p.customer_id = c.customer_id
+
+)) as min_max_payment from customer c
+
+inner join address a on c.address_id = a.address_id;

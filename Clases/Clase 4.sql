@@ -1,71 +1,42 @@
-CREATE DATABASE IF NOT EXISTS imdb;
+use sakila;
 
-USE imdb;
+select f.title, f.special_features from film f
+where f.rating like "PG-13";
 
-CREATE TABLE actor (
-  actor_id SMALLINT UNSIGNED NOT NULL AUTO_INCREMENT,
-  first_name VARCHAR(45) NOT NULL,
-  last_name VARCHAR(45) NOT NULL,
-  last_update TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  PRIMARY KEY (actor_id)
-);
 
-CREATE TABLE film (
-  film_id SMALLINT UNSIGNED NOT NULL AUTO_INCREMENT,
-  title VARCHAR(255) NOT NULL,
-  description TEXT DEFAULT NULL,
-  release_year YEAR DEFAULT NULL,
-  last_update TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  PRIMARY KEY (film_id)
-);
+select distinct f.length from film f
+order by f.length ;
 
-CREATE TABLE film_actor (
-  actor_id SMALLINT UNSIGNED NOT NULL,
-  film_id SMALLINT UNSIGNED NOT NULL,
-  last_update TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  PRIMARY KEY (actor_id, film_id),
-  CONSTRAINT fk_film_actor_actor FOREIGN KEY (actor_id) REFERENCES actor (actor_id) ON DELETE RESTRICT ON UPDATE CASCADE,
-  CONSTRAINT fk_film_actor_film FOREIGN KEY (film_id) REFERENCES film (film_id) ON DELETE RESTRICT ON UPDATE CASCADE
-);
 
-INSERT INTO actor (first_name, last_name) VALUES
-('Leonardo', 'DiCaprio'),
-('Robert', 'De Niro'),
-('Scarlett', 'Johansson');
+select f.title, f.rental_rate, f.replacement_cost from film f
+where f.replacement_cost between 20.00 and 24.00
+order by f.replacement_cost ;
 
-INSERT INTO film (title, description, release_year) VALUES
-('Inception', 'A mind-bending thriller', 2010),
-('The Irishman', 'A mob drama', 2019),
-('Black Widow', 'A Marvel superhero movie', 2021);
+select f.title, c.name, f.rating from film f
+inner join film_category fc on f.film_id = fc.film_id
+inner join category c on fc.category_id  = c.category_id
+where f.special_features like "%Behind the Scenes%";
 
-INSERT INTO film_actor (actor_id, film_id) VALUES
-(1, 1),  -- Leonardo DiCaprio en Inception
-(2, 2),  -- Robert De Niro en The Irishman
-(3, 3),  -- Scarlett Johansson en Black Widow
-(1, 2);  -- Leonardo DiCaprio en The Irishman
+select a.first_name, a.last_name from actor a
+inner join film_actor fa on a.actor_id = fa.actor_id
+inner join film f on fa.film_id  = f.film_id
+where f.title like "%ZOOLANDER FICTION%"
 
-#CONSULTAS
-#1-SELECT title, description FROM film;
 
-#2-SELECT DISTINCT release_year FROM film;
+select ad.address, cy.city, ct.country from store s
+inner join address ad on s.address_id  = ad.address_id
+inner join city cy on ad.city_id = cy.city_id
+inner join country ct on cy.country_id  = ct.country_id
+where s.store_id = 1;
 
-#3-SELECT title, release_year FROM film;
 
-#4-SELECT title, description FROM film;
+select f.title as "film 1 title", f.rating as "film 1 rating", 
+fl.title as "film 2 title", fl.rating as "film 2 rating" from film f
+inner join film fl on f.rating = fl.rating;
 
-#5-SELECT a.first_name, a.last_name
-FROM actor a
-JOIN film_actor fa ON a.actor_id = fa.actor_id
-JOIN film f ON fa.film_id = f.film_id
-WHERE f.title = 'Inception';
 
-#6-SELECT actor_id, first_name, last_name FROM actor;
-
-#7-SELECT f1.title AS film1, f2.title AS film2, f1.release_year
-FROM film f1
-JOIN film f2 ON f1.release_year = f2.release_year AND f1.film_id < f2.film_id;
-
-#8-SELECT f.title, a.first_name, a.last_name
-FROM film f
-JOIN film_actor fa ON f.film_id = fa.film_id
-JOIN actor a ON fa.actor_id = a.actor_id;
+select f.*, ma.first_name, ma.last_name from film f
+inner join inventory i on f.film_id = i.film_id
+inner join store s on i.store_id = s.store_id
+inner join staff ma on s.manager_staff_id  = ma.staff_id
+where s.store_id =2;
