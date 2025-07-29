@@ -1,117 +1,143 @@
-CREATE VIEW list_of_customers AS
-SELECT
-    customer_id,
-    CONCAT(first_name, ' ', last_name) AS customer_full_name,
-    address,
-    postal_code AS zip_code,
-    phone,
-    city,
-    country,
-    CASE
-        WHEN active = 1 THEN 'active'
-        ELSE 'inactive'
-    END AS status,
-    store_id
-FROM customers;
+use sakila;
 
-CREATE VIEW film_details AS
-SELECT
-    film_id,
-    title,
-    description,
-    category,
-    price,
-    length,
-    rating,
-    GROUP_CONCAT(actor_name SEPARATOR ', ') AS actors
-FROM (
-    SELECT
-        f.film_id,
-        f.title,
-        f.description,
-        f.category,
-        f.price,
-        f.length,
-        f.rating,
-        CONCAT(a.first_name, ' ', a.last_name) AS actor_name
-    FROM film f
-    JOIN film_actor fa ON f.film_id = fa.film_id
-    JOIN actor a ON fa.actor_id = a.actor_id
-) AS film_actors
-GROUP BY film_id;
+-- 1 
+create view list_of_customers as
+	select 
+	c.customer_id as Id,
+	concat(c.first_name, " ", c.last_name) as 'Full Name',
+	a.address as Address,
+	a.postal_code as 'ZIP Code',
+	a.phone as Phone,
+	c1.city as City,
+	c2.country as Country,
+	c.store_id as 'Store Id',
+	case 
+		when c.active = 1 then 'active'
+		else 'inactive'
+	end as Status
+	from customer c
+	inner join address a using(address_id )
+	inner join city c1 using(city_id)
+	inner join country c2 using(country_id)
+	
+	
+select * from list_of_customers;
+
+-- 2 
+
+create view film_details as
+
+select
+f.film_id as Id ,
+f.title as Title,
+f.description as Descripction,
+c.name as Category,
+f.rental_rate as Price,
+f.`length` as Length,
+f.rating as Rating,
+group_concat(concat(a.first_name, " ", a.last_name) separator ", ") as Actors
+from film f
+inner join film_category fc using(film_id) 
+inner join category c using(category_id)
+inner join film_actor fa using(film_id)
+inner join actor a using(actor_id)
+group by f.film_id, c.name;
+
+select * from film_details;
+
+-- 3 
+
+create view sales_by_film_category as
+
+select 
+c.name as Category,
+(
+
+select sum(p.amount) from payment p
+inner join rental r using(rental_id)
+inner join inventory i using(inventory_id)
+inner join film f using(film_id)
+inner join film_category fc using(film_id)
+inner join category c1 using(category_id)
+where c1.category_id = c.category_id
+
+) as total_rental
+from category c
+
+select * from sales_by_film_category
+
+-- 4 
+
+create view actor_information as
+
+select 
+a.actor_id,
+a.first_name,
+a.last_name,
+count(f.film_id) as amount
+from actor a
+inner join film_actor fa using(actor_id )
+inner join film f using(film_id)
+group by a.actor_id 
+
+select * from actor_information
+
+-- 5 
+
+select * from actor_info a;
+
+# la query seria similar a la de la consigna cuatro, donde obtenemos id, nombre y apellido del actor, sin embargo
+# en vez de tener la cantidad de peliculas en las que actuo cada actor, se tiene en CUALES peliculas actuo, subdivididas
+# dentro del mismo group_concat por categorias. Esto se podria hacer de la sigueitne forma:
+
+select group_concat(CONCAT(cat.name, ": ", (
+
+select group_concat(f.title separator ", ") from film f
+inner join film_category fc using(film_id)
+inner join category c1 using(category_id)
+where c1.category_id = cat.category_id
+
+)
+) separator " | ") as films from category cat
+group by cat.category_id
+
+# Entonces luego, agregamos esto como subconsulta a la query inicial y le agregamos el validador para que sean solo 
+# las del actor de esa row:
+
+select 
+a.actor_id,
+a.first_name,
+a.last_name,
+(select group_concat(CONCAT(cat.name, ": ", (
+
+select group_concat(f.title separator ", ") from film f
+inner join film_category fc using(film_id)
+inner join category c1 using(category_id)
+inner join film_actor fa1 using(film_id)
+inner join actor a2 using(actor_id)
+ 
+where c1.category_id = cat.category_id and a2.actor_id = a.actor_id
+
+)
+) separator " | ") from category cat
+inner join film_category fc1 using(category_id)
+inner join film f1 using(film_id)
+inner join film_actor fa using(film_id)
+inner join actor a1 using(actor_id)
+where a1.actor_id = a.actor_id
+
+) as films
+from actor a
+inner join film_actor fa using(actor_id )
+inner join film f using(film_id)
+group by a.actor_id;
 
 
-CREATE VIEW sales_by_film_category AS
-SELECT
-    category,
-    COUNT(rental_id) AS total_rental
-FROM film_category fc
-JOIN inventory i ON fc.film_id = i.film_id
-JOIN rental r ON i.inventory_id = r.inventory_id
-GROUP BY category;
 
-CREATE VIEW actor_information AS
-SELECT
-    a.actor_id,
-    a.first_name,
-    a.last_name,
-    COUNT(fa.film_id) AS film_count
-FROM actor a
-JOIN film_actor fa ON a.actor_id = fa.actor_id
-GROUP BY a.actor_id;
-
--- Explicación detallada de la vista actor_info
-
--- Esta vista devuelve información sobre actores y cuántas películas protagonizaron.
-
--- Consulta (puede variar según el esquema, ejemplo representativo):
-SELECT
-  a.actor_id,
-  a.first_name,
-  a.last_name,
-  COUNT(fa.film_id) AS film_count
-FROM actor a
-JOIN film_actor fa ON a.actor_id = fa.actor_id
-GROUP BY a.actor_id;
-
--- Vistas Materializadas 
-
--- ¿Qué es una vista materializada?
--- Es una vista cuyos resultados se almacenan físicamente en disco, a diferencia de las vistas normales
--- que son virtuales y se recalculan cada vez que se consultan.
-
--- ¿Para qué se usan?
--- - Mejorar el rendimiento de consultas complejas (joins, agrupamientos, etc.)
--- - Reducir el tiempo de respuesta en reportes o dashboards.
--- - Mantener snapshots de datos históricos o agregados.
-
--- ¿Cuáles son sus ventajas?
--- - Aceleran el acceso a datos complejos.
--- - Permiten trabajar con datos preprocesados.
--- - Se pueden refrescar manual o automáticamente (dependiendo del SGBD).
-
--- ¿Y sus desventajas?
--- - Ocupan espacio físico.
--- - Pueden quedar desactualizadas si no se actualizan correctamente.
--- - Más complejas de administrar que las vistas normales.
-
--- Alternativas:
--- - Caching en la aplicación.
--- - Tablas temporales.
--- - Denormalización de datos.
-
--- Sistemas que las soportan:
--- - Oracle (vista materializada con REFRESH)
--- - PostgreSQL (desde la versión 9.3)
--- - SQL Server (como "indexed views")
--- - MySQL: no las soporta nativamente, pero se pueden emular con triggers o jobs programados.
-
--- Ejemplo en PostgreSQL:
--- CREATE MATERIALIZED VIEW ventas_mensuales AS
--- SELECT cliente_id, SUM(total) AS total_mensual
--- FROM ventas
--- GROUP BY cliente_id;
-
--- REFRESH MATERIALIZED VIEW ventas_mensuales;
+-- 6 
+ 
+# Una vista es como una instancia de query que se guarda como una tabla en la Base de Datos, no es parte de la estructura de la Base de Datos,
+# Sino que es como una "tabla virtual", la cual sirve para no estar calculando las logicas de consultas usadas
 
 
+#Una vista materializada, es esa vista que deja de ser una tabala virtual y se vuelve parte de la Base de Datos, que se suele usar para calculos mas complejos 
