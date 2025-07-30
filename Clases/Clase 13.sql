@@ -7,7 +7,7 @@ order by customer_id desc
 insert into customer
 (store_id, first_name, last_name, email, address_id, active)
 values 
-(1, 'Carlos', 'Vercellone', 'carlosvercellone21@gmail.com', (
+(1, 'Emiliano', 'Marquez', 'emimarquez06@gmail.com', (
 
 select a.address_id from address a
 inner join city c on a.city_id = c.city_id
