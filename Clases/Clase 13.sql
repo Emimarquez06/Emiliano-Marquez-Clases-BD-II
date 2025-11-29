@@ -1,169 +1,135 @@
-use sakila;
+USE sakila;
 
-select * from customer
-order by customer_id desc
-
-
-insert into customer
-(store_id, first_name, last_name, email, address_id, active)
-values 
-(1, 'Emiliano', 'Marquez', 'emimarquez06@gmail.com', (
-
-select a.address_id from address a
-inner join city c on a.city_id = c.city_id
-inner join country co on co.country_id = c.country_id
-order by a.address_id desc
-limit 1
-
-), 1);
-
-
-select * from rental
-order by rental.rental_id desc
-
-insert into rental
-(rental_date, inventory_id, customer_id, return_date, staff_id)
-values
-(now(), (
-
-select i.inventory_id from inventory i 
-inner join film f on i.film_id = f.film_id
-where f.title = 'AFRICAN EGG'
-limit 1
-
-), (
-
-select c.customer_id from customer c 
-order by c.customer_id desc
-limit 1
-
-), DATE_ADD(now(), interval 10 day), (
-
-select s.staff_id from staff s
-where s.store_id = 2
-limit 1
-
-));
-
-select distinct release_year from film
-order by film_id desc
-
-update film
-set release_year = 2001
-where rating = "G";
-
-update film
-set release_year = 2002
-where rating = "R";
-
-update film
-set release_year = 2003
-where rating = "NC-17";
-
-update film
-set release_year = 2004
-where rating = "PG-13";
-
-update film
-set release_year = 2005
-where rating = "PG";
-
-
-select r.rental_id from rental r 
-where r.return_date is null
-order by r.rental_date desc
-limit 1;
-
-update rental
-set return_date = now()
-where rental_id = 11739;
-
-select * from rental r
-where rental_id = 11739;
-
-
-
-
-
-
-select * from film f
-order by f.film_id desc;
-
-delete from film_actor
-where film_id = 1000;
-
-
-delete from film_category
-where film_id = 1000;
-
-
-
-delete from rental
-where inventory_id in (
-
-select inventory_id from inventory
-where film_id = 1000
-
+-- 1) 
+INSERT INTO customer (store_id, first_name, last_name, email, address_id, active)
+VALUES (
+    1,
+    'Emi',
+    'AlumnoSQL',
+    'emi@test.com',
+    (
+        SELECT MAX(a.address_id)
+        FROM address a
+        JOIN city c ON a.city_id = c.city_id
+        JOIN country co ON c.country_id = co.country_id
+        WHERE co.country = 'United States'
+    ),
+    1
 );
 
-delete from inventory 
-where film_id = 1000;
 
-delete from film
-where film_id = 1000;
+-- 2) 
+INSERT INTO rental (rental_date, inventory_id, customer_id, staff_id)
+VALUES (
+    NOW(),
+    (
+        SELECT MAX(i.inventory_id)
+        FROM inventory i
+        JOIN film f ON i.film_id = f.film_id
+        WHERE f.title = 'PONÉ ACÁ EL TÍTULO DE LA PELÍCULA'
+    ),
+    (SELECT MAX(customer_id) FROM customer),
+    (
+        SELECT staff_id
+        FROM staff
+        WHERE store_id = 2
+        LIMIT 1
+    )
+);
 
+-- 3)
 
+UPDATE film
+SET release_year = CASE rating
+    WHEN 'G' THEN 2001
+    WHEN 'PG' THEN 2005
+    WHEN 'PG-13' THEN 2010
+    WHEN 'R' THEN 2015
+    WHEN 'NC-17' THEN 2020
+END;
 
+-- 4) 
 
-select i.inventory_id from inventory i
-where i.inventory_id not in (
+UPDATE rental
+SET return_date = NOW()
+WHERE rental_id = (
+    SELECT rental_id
+    FROM rental
+    WHERE return_date IS NULL
+    ORDER BY rental_date DESC
+    LIMIT 1
+);
 
-select r.inventory_id from rental r
+-- 5)
 
-) limit 1;
+-- A)
+DELETE FROM payment
+WHERE rental_id IN (
+    SELECT rental_id FROM rental
+    WHERE inventory_id IN (
+        SELECT inventory_id FROM inventory
+        WHERE film_id = (
+            SELECT film_id FROM film WHERE title = 'PONÉ ACÁ EL TÍTULO DE LA PELÍCULA'
+        )
+    )
+);
 
-select * from rental
-order by rental.rental_id desc;
+-- B)
+DELETE FROM rental
+WHERE inventory_id IN (
+    SELECT inventory_id FROM inventory
+    WHERE film_id = (
+        SELECT film_id FROM film WHERE title = 'PONÉ ACÁ EL TÍTULO DE LA PELÍCULA'
+    )
+);
 
-select * from payment
-order by payment_id desc;
+-- C)
+DELETE FROM inventory
+WHERE film_id = (
+    SELECT film_id FROM film WHERE title = 'PONÉ ACÁ EL TÍTULO DE LA PELÍCULA'
+);
 
--- 5 es el inventory id available
+-- D)
+DELETE FROM film_actor
+WHERE film_id = (
+    SELECT film_id FROM film WHERE title = 'PONÉ ACÁ EL TÍTULO DE LA PELÍCULA'
+);
 
-insert into rental
-(rental_date, inventory_id, customer_id, staff_id)
-values
-(now(), (select i.inventory_id from inventory i
-where i.inventory_id not in (
+--E)
+DELETE FROM film_category
+WHERE film_id = (
+    SELECT film_id FROM film WHERE title = 'PONÉ ACÁ EL TÍTULO DE LA PELÍCULA'
+);
 
-select r.inventory_id from rental r
+--F)
+DELETE FROM film
+WHERE title = 'PONÉ ACÁ EL TÍTULO DE LA PELÍCULA';
 
-) limit 1), 1, 1);
+-- 6)
 
-insert into payment 
-(customer_id, staff_id, rental_id, amount, payment_date )
-values 
-((
+-- A)
+SELECT inventory_id
+FROM inventory
+WHERE inventory_id NOT IN (
+    SELECT inventory_id FROM rental WHERE return_date IS NULL
+)
+LIMIT 1;
 
-select customer_id from rental
-order by rental_id desc
-limit 1
+-- B)
+INSERT INTO rental (rental_date, inventory_id, customer_id, staff_id)
+VALUES (
+    NOW(),
+    9,  
+    (SELECT MAX(customer_id) FROM customer),
+    (SELECT staff_id FROM staff LIMIT 1)
+);
 
-), (
-
-select staff_id from rental
-order by rental_id desc
-limit 1
-
-), (
-
-select rental_id from rental
-order by rental_id desc
-limit 1
-
-), 10, now());
-
-
-
-
-
+-- C)
+INSERT INTO payment (customer_id, staff_id, rental_id, amount, payment_date)
+VALUES (
+    (SELECT MAX(customer_id) FROM customer),
+    (SELECT staff_id FROM staff LIMIT 1),
+    (SELECT MAX(rental_id) FROM rental),
+    4.99,
+    NOW()
+);
