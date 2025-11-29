@@ -1,67 +1,57 @@
-use sakila;
+USE sakila;
+
+-- 1) 
+
+SELECT *
+FROM address
+WHERE postal_code IN ('35200', '17886', '77050');
 
 
+SELECT a.address, a.postal_code, c.city, co.country
+FROM address a
+JOIN city c ON a.city_id = c.city_id
+JOIN country co ON c.country_id = co.country_id
+WHERE a.postal_code NOT IN ('35200', '17886');
 
-#1-a
-select * from address a 
-where a.postal_code in ("35200","17886","83579","53561","42399","18743","93896","77948","45844","53628","1027","10672")
+SELECT *
+FROM address
+WHERE postal_code = '77050';
 
-#1-abis
-select * from address a 
-where a.postal_code not in ("35200","17886","83579","53561","42399","18743","93896","77948","45844","53628","1027","10672")
-
-#1-b
-select a.address, a.postal_code, c.city, co.country from address a 
-inner join city c using(city_id)
-inner join country co using(country_id)
-where a.postal_code in ("35200","17886","83579","53561","42399","18743","93896","77948","45844","53628","1027","10672")
-
-#1-c
-explain
-select a.address, a.postal_code, c.city, co.country from address a 
-inner join city c using(city_id)
-inner join country co using(country_id)
-where a.postal_code in ("35200","17886","83579","53561","42399","18743","93896","77948","45844","53628","1027","10672")
-
-#1-cbis
 SET profiling = 1;
-select a.address, a.postal_code, c.city, co.country from address a 
-inner join city c using(city_id)
-inner join country co using(country_id)
-where a.postal_code in ("35200","17886","83579","53561","42399","18743","93896","77948","45844","53628","1027","10672");
-show PROFILES;
 
-#1-d
-CREATE INDEX postalCode ON address(postal_code);
+SELECT *
+FROM address
+WHERE postal_code = '77050';
 
-#1-e
-SET profiling = 1;
-select a.address, a.postal_code, c.city, co.country from address a 
-inner join city c using(city_id)
-inner join country co using(country_id)
-where a.postal_code in ("35200","17886","83579","53561","42399","18743","93896","77948","45844","53628","1027","10672");
-show PROFILES;
+SHOW PROFILES;
 
-#2
-SET profiling = 1;
-select * from actor a
-where a.first_name LIKE 'Penelope';
-show PROFILES;
-SET profiling = 1;
-select * from actor a
-where a.last_name LIKE 'GUINESS';
-show PROFILES; 
+CREATE INDEX idx_postal_code ON address(postal_code);
 
-#3
-SET profiling = 1;
-SELECT film_id, title, description
+SELECT *
+FROM address
+WHERE postal_code = '77050';
+
+SHOW PROFILES;
+
+-- 2) 
+SELECT *
+FROM actor
+WHERE first_name = 'SCARLETT';
+
+
+SELECT *
+FROM actor
+WHERE last_name = 'JOHANSSON';
+
+CREATE INDEX idx_first_name ON actor(first_name);
+
+-- 3) 
+SELECT title, description
 FROM film
-WHERE description LIKE '%Action%';
-show PROFILES;
-Alter table film
-add FULLTEXT(description);
-SET profiling = 1;
-SELECT film_id, title, description
-FROM film
-WHERE MATCH (description) AGAINST('Action');
-show PROFILES; 
+WHERE description LIKE '%car%';
+
+SELECT title, description
+FROM film_text
+WHERE MATCH(description) AGAINST('car' IN NATURAL LANGUAGE MODE);
+
+
