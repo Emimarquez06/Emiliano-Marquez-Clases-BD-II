@@ -1,65 +1,62 @@
-drop database if exists imdb;
-create database imdb;
-use imdb;
+DROP DATABASE IF EXISTS imdb;
 
-create table film(
-	
-	film_id int not null auto_increment,
-	title varchar(60) not null,
-	description varchar(225),
-	release_year int(4),
-	constraint film_pk primary key (film_id)
+CREATE DATABASE IF NOT EXISTS imdb;
 
+USE imdb;
+
+CREATE TABLE actor (
+	actor_id INT AUTO_INCREMENT NOT NULL,
+    first_name VARCHAR(50) NOT NULL,
+    last_name VARCHAR(50) NOT NULL,
+    PRIMARY KEY (actor_id) 
 );
 
-create table actor(
-	
-	actor_id int not null auto_increment,
-	first_name varchar(60) not null,
-	last_name varchar(60) not null,
-	
-	constraint actor_pk primary key (actor_id)
-
+CREATE TABLE film (
+    film_id INT NOT NULL AUTO_INCREMENT,
+    title VARCHAR(100) NOT NULL,
+    description TEXT DEFAULT NULL,
+    release_year YEAR,
+    PRIMARY KEY (film_id)
 );
 
-create table film_actor(
-	
-	actor_id int not null ,
-	film_id int not null,
-	
-	
-	constraint film_actor_pk primary key (actor_id, film_id)
-
+CREATE TABLE film_actor (
+	actor_id INT,
+    film_id INT,
+    PRIMARY KEY (actor_id, film_id),
+    CONSTRAINT fk_film_actor_actor FOREIGN KEY (actor_id) REFERENCES actor(actor_id) ON DELETE CASCADE
 );
 
 
-alter table film
-	add column last_update date;
+ALTER TABLE film
+ADD last_update DATETIME;
 
-alter table actor
-	add column last_update date;
-
-
-alter table film_actor
-	add constraint film_fk foreign key (film_id) references film(film_id),
-	add constraint actor_fk foreign key (actor_id) references actor(actor_id);
+ALTER TABLE actor
+ADD last_update DATETIME;
 
 
-insert into film (title, description, release_year)
-values ('Iron Man 3', 'Hombre de Acero 3 pelea contra mutante naranja', 2012),
-('Avengers infinity War', 'Thanos viene a joder', 2018),
-('Avengers Endgame', 'Lo mataron a Thanos por jodido', 2021);
-
-insert into actor (first_name, last_name)
-values ('Carlitos', 'Vercellone'),
-('Robert Downley Jr', 'Downley Jr'),
-('Steve', 'Rogers');
+ALTER TABLE film_actor ADD
+CONSTRAINT fk_film_actor_film FOREIGN KEY (film_id) REFERENCES film (film_id) ON DELETE CASCADE;
 
 
-insert into film_actor(actor_id, film_id) values(1,1), (1,2), (1,3), (3,2);
+INSERT INTO actor (first_name, last_name) VALUES
+('Leonardo', 'Sbaraglia'),
+('Ricardo', 'Darín'),
+('Peter', 'Lanzani');
+('Guillermo', 'Francella'),
+('Mercedes', 'Morán'),
 
 
+INSERT INTO film (title, description, release_year) VALUES
+('Nueve Reinas', 'Dos estafadores se cruzan con un negocio millonario.', 2000),
+('El Secreto de Sus Ojos', 'Un exagente judicial busca resolver un caso sin resolver.', 2009),
+('El Robo del Siglo', 'El famoso robo al Banco Río en Acassuso.', 2020);
+('El Clan', 'Historia basada en la familia Puccio que secuestraba personas.', 2015),
+('Relatos Salvajes', 'Seis historias sobre la violencia cotidiana.', 2014),
 
-
-
-
+INSERT INTO film_actor (actor_id, film_id) VALUES
+(1, 1),
+(1, 3),
+(2, 4),
+(3, 2),
+(4, 4),
+(5, 5);
