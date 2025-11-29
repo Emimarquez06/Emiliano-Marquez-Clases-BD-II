@@ -1,116 +1,133 @@
-use sakila;
+USE sakila;
 
-#1 
-delimiter 
-CREATE FUNCTION cantidad_copias(
-    pelicula_id INT,
-    tienda_id INT
-)
-RETURNS INT
+
+-- 1) 
+DROP FUNCTION IF EXISTS stock_by_store;
+
+DELIMITER $$
+
+CREATE FUNCTION stock_by_store(
+    film_name VARCHAR(100),
+    store INT
+) RETURNS INT
 DETERMINISTIC
-READS SQL DATA
 BEGIN
-    DECLARE copias_vendidas INT;
+    DECLARE total INT;
 
-    SELECT COUNT(*)
-    INTO copias_vendidas
+    SELECT COUNT(*) INTO total
     FROM inventory i
-    WHERE i.store_id = tienda_id
-      AND i.film_id = pelicula_id;
+    JOIN film f ON i.film_id = f.film_id
+    WHERE f.title = film_name
+      AND i.store_id = IFNULL(store, i.store_id);
 
-    RETURN copias_vendidas;
-END
-delimiter ;
+    RETURN total;
+END $$
 
-SELECT cantidad_copias(1,1) AS total_copias;
+DELIMITER ;
 
-#2
-delimiter Esta_re_dificil_el_Cursor
-create Procedure clientes_x_pais (
-in pais text ,
-out lista_clientes text
+SELECT stock_by_store('ADAPTATION HOLES', 1);
+SELECT stock_by_store('ADAPTATION HOLES', NULL);
 
+-- 2) 
+DROP PROCEDURE IF EXISTS sp_people_by_country;
+
+DELIMITER $$
+
+CREATE PROCEDURE sp_people_by_country(
+    IN input_country VARCHAR(50),
+    OUT result TEXT
 )
-begin
-	
-	declare fin int default 0;
-	declare v_cliente varchar(200);
-
-	declare bucle cursor for 
-	select concat(c.first_name, " ",c.last_name) from customer c
-	inner join address a using(address_id)
-	inner join city ci using(city_id)
-	inner join country co using(country_id)
-	where co.country LIKE pais;
-
-	declare continue handler for NOT FOUND set fin = 1;
-	
-	set lista_clientes = "";
-	
-	open bucle;
-	
-	bucle_loop: loop
-		
-		fetch bucle into v_cliente;
-		if fin = 1 then 
-			leave bucle_loop;
-		end if;
-		
-		set lista_clientes = concat(lista_clientes, v_cliente, "; " );
-	end loop;
-
-	close bucle;
-end Esta_re_dificil_el_Cursor
-
-
-#3a
-show create function inventory_in_stock ;
-CREATE DEFINER=`root`@`localhost` FUNCTION `inventory_in_stock`(p_inventory_id INT) RETURNS tinyint(1) 
-    READS SQL DATA
 BEGIN
-    DECLARE v_rentals INT; 
-    DECLARE v_out     INT;
+    DECLARE finished INT DEFAULT 0;
+    DECLARE name TEXT;
+    DECLARE result_list TEXT DEFAULT '';
 
+    DECLARE cur_names CURSOR FOR
+        SELECT CONCAT(c.first_name, ' ', c.last_name)
+        FROM customer c
+        JOIN address a ON c.address_id = a.address_id
+        JOIN city ci ON a.city_id = ci.city_id
+        JOIN country co ON ci.country_id = co.country_id
+        WHERE co.country = input_country;
 
-    SELECT COUNT(*) INTO v_rentals
-    FROM rental
-    WHERE inventory_id = p_inventory_id;
+    DECLARE CONTINUE HANDLER FOR NOT FOUND SET finished = 1;
 
-    IF v_rentals = 0 THEN
-    RETURN TRUE; 
-    END IF;
+    OPEN cur_names;
 
-    SELECT COUNT(rental_id) INTO v_out
-    FROM inventory LEFT JOIN rental USING(inventory_id)
-    WHERE inventory.inventory_id = p_inventory_id
-    AND rental.return_date IS NULL; 
+    read_loop: LOOP
+        FETCH cur_names INTO name;
+        IF finished = 1 THEN
+            LEAVE read_loop;
+        END IF;
 
-    IF v_out > 0 THEN
-    RETURN FALSE; 
-    ELSE
-    RETURN TRUE; 
-    END IF;
-END
-SELECT inventory_in_stock(inventory_id) from inventory i
+        SET result_list = 
+            CASE 
+                WHEN result_list = '' THEN name
+                ELSE CONCAT(result_list, ' | ', name)
+            END;
+    END LOOP;
 
+    CLOSE cur_names;
 
-#3b
-show create procedure film_in_stock;
-CREATE DEFINER=`root`@`localhost` PROCEDURE `film_in_stock`(IN p_film_id INT, IN p_store_id INT, OUT p_film_count INT) 
-    READS SQL DATA
+    SET result = result_list;
+END $$
+
+DELIMITER ;
+
+SET @lista = '';
+CALL sp_people_by_country('Argentina', @lista);
+SELECT @lista;
+
+-- 3)
+
+DROP FUNCTION IF EXISTS available_stock;
+
+DELIMITER $$
+
+CREATE FUNCTION available_stock(filmId INT) RETURNS INT
+DETERMINISTIC
 BEGIN
-    SELECT inventory_id
-    FROM inventory
-    WHERE film_id = p_film_id
-    AND store_id = p_store_id
-    AND inventory_in_stock(inventory_id); 
-    SELECT COUNT(*)
-    FROM inventory
-    WHERE film_id = p_film_id
-    AND store_id = p_store_id
-    AND inventory_in_stock(inventory_id)
-    INTO p_film_count; 
-END
+    DECLARE qty INT;
 
-call film_in_stock(1,1,@total);
-select @total;
+    SELECT COUNT(*) INTO qty
+    FROM inventory i
+    LEFT JOIN rental r
+        ON i.inventory_id = r.inventory_id
+        AND r.return_date IS NULL
+    WHERE i.film_id = filmId
+      AND r.inventory_id IS NULL;
+
+    RETURN qty;
+END $$
+
+DELIMITER ;
+
+
+SELECT available_stock(1);
+SELECT available_stock(50);
+
+
+DROP PROCEDURE IF EXISTS list_available_inventory;
+
+DELIMITER $$
+
+CREATE PROCEDURE list_available_inventory(
+    IN filmId INT,
+    IN storeId INT
+)
+BEGIN
+    SELECT i.inventory_id
+    FROM inventory i
+    WHERE i.film_id = filmId
+      AND i.store_id = storeId
+      AND NOT EXISTS (
+            SELECT 1
+            FROM rental r
+            WHERE r.inventory_id = i.inventory_id
+              AND r.return_date IS NULL
+      );
+END $$
+
+DELIMITER ;
+
+CALL list_available_inventory(1, 1);
